@@ -15,21 +15,43 @@ class DashboardScreen extends StatefulWidget {
 class _DashboardScreenState extends State<DashboardScreen> {
   final _authService = AuthService();
   Map<String, dynamic>? _user;
+  Map<String, dynamic>? _dashboardStats;
+  Map<String, dynamic>? _currentWeekDisciplines;
   bool _isLoading = true;
 
   @override
   void initState() {
     super.initState();
-    _fetchProfile();
+    _loadAllData();
   }
 
-  Future<void> _fetchProfile() async {
-    final result = await _authService.getProfile();
+  Future<void> _loadAllData() async {
+    setState(() => _isLoading = true);
+    
+    // Parallel fetching for performance
+    final results = await Future.wait([
+      _authService.getProfile(),
+      _authService.getDashboardStats(),
+      _authService.getCurrentWeekDisciplines(),
+    ]);
+
     if (mounted) {
       setState(() {
-        if (result['success']) {
-          _user = result['data'];
+        // Profile
+        if (results[0]['success']) {
+          _user = results[0]['data'];
         }
+        
+        // Dashboard Stats
+        if (results[1]['success']) {
+          _dashboardStats = results[1]['data'];
+        }
+
+        // Current Week Disciplines
+        if (results[2]['success']) {
+          _currentWeekDisciplines = results[2]['data'];
+        }
+        
         _isLoading = false;
       });
     }
@@ -66,9 +88,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const _SummaryCards(),
+                        _SummaryCards(stats: _dashboardStats),
                         const SizedBox(height: 32),
-                        const _AccountabilityTable(),
+                        _AccountabilityTable(
+                          initialData: _currentWeekDisciplines,
+                          authService: _authService,
+                        ),
                         const SizedBox(height: 32),
                         const _BottomSection(),
                       ],
@@ -356,10 +381,17 @@ class _Header extends StatelessWidget {
 }
 
 class _SummaryCards extends StatelessWidget {
-  const _SummaryCards();
+  final Map<String, dynamic>? stats;
+  const _SummaryCards({this.stats});
 
   @override
   Widget build(BuildContext context) {
+    // defaults
+    final completed = stats?['tasksCompleted'] ?? 0;
+    final total = stats?['totalTasks'] ?? 28;
+    final streak = stats?['currentStreak'] ?? 0;
+    final rate = stats?['completionRate'] ?? 0;
+    
     // Responsive grid
     double width = MediaQuery.of(context).size.width;
     int crossAxisCount = width > 1100 ? 3 : (width > 700 ? 2 : 1);
@@ -377,7 +409,7 @@ class _SummaryCards extends StatelessWidget {
           iconColor: const Color(0xFF1152D4),
           iconBg: const Color(0xFF1152D4).withOpacity(0.1),
           title: 'Tasks Completed',
-          value: '18 / 28',
+          value: '$completed / $total',
           content: Container(
             height: 6,
             width: double.infinity,
@@ -388,7 +420,7 @@ class _SummaryCards extends StatelessWidget {
             ),
             child: FractionallySizedBox(
               alignment: Alignment.centerLeft,
-              widthFactor: 0.64,
+              widthFactor: total > 0 ? (completed / total).clamp(0.0, 1.0) : 0,
               child: Container(
                 decoration: BoxDecoration(
                   color: const Color(0xFF1152D4),
@@ -398,24 +430,24 @@ class _SummaryCards extends StatelessWidget {
             ),
           ),
         ),
-        const _CardItem(
+        _CardItem(
           icon: Icons.local_fire_department,
           iconColor: Colors.orange,
-          iconBg: Color(0xFFFFEDD5),
+          iconBg: const Color(0xFFFFEDD5),
           title: 'Current Streak',
-          value: '5 Days',
-          subContent: Text(
-            '+2 days from last week',
+          value: '$streak Days',
+          subContent: const Text(
+            'Keep it up!',
             style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.green),
           ),
         ),
-        const _CardItem(
+        _CardItem(
           icon: Icons.query_stats,
           iconColor: Colors.green,
-          iconBg: Color(0xFFDCFCE7),
+          iconBg: const Color(0xFFDCFCE7),
           title: 'Completion Rate',
-          value: '64%',
-          subContent: Text(
+          value: '$rate%',
+          subContent: const Text(
             'Goal: 85%+',
             style: TextStyle(fontSize: 12, color: Color(0xFF616F89)),
           ),
@@ -503,37 +535,94 @@ class _CardItem extends StatelessWidget {
 }
 
 class _AccountabilityTable extends StatefulWidget {
-  const _AccountabilityTable();
+  final Map<String, dynamic>? initialData;
+  final AuthService authService;
+
+  const _AccountabilityTable({this.initialData, required this.authService});
 
   @override
   State<_AccountabilityTable> createState() => _AccountabilityTableState();
 }
 
 class _AccountabilityTableState extends State<_AccountabilityTable> {
-  // Data structure to hold the state of the checkboxes
-  // Rows: Prayer, Bible Study, Fasting, Evangelism
-  // Columns: Mon - Sun (7 days)
-  // Value: true (checked), false (unchecked - not used here much if we want tri-state), null (empty)
-  // For this design, let's assume:
-  // null = empty/unchecked
-  // true = checked/done
-  
   final List<String> _rowTitles = ['Prayer', 'Bible Study', 'Fasting', 'Evangelism'];
   final List<String> _rowSubtitles = ['1 hour minimum', 'Personal deep study', 'Weekly requirement', 'Soul winning'];
-  final List<List<int>> _naIndices = [
-    [], // Prayer
-    [], // Bible Study
-    [], // Fasting
-    [], // Evangelism
-  ];
+  final List<String> _apiKeys = ['prayer', 'bible_study', 'fasting', 'evangelism'];
+  // Sunday is index 6 in UI (Mon=0), but standard DateTime.weekday is Mon=1..Sun=7. 
+  // API likely uses boolean keys: monday, tuesday...
+  final List<String> _dayKeys = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
 
-  late List<List<bool?>> _statusData;
+  // N/A Logic: Fasting & Evangelism only need 1 day. 
+  // We won't enforce N/A visually to keep it flexible as per previous request to remove constraints,
+  // but we will interpret unchecked as false for API.
+
+  late List<List<bool>> _statusData;
+  bool _isSaving = false;
 
   @override
   void initState() {
     super.initState();
-    // Initialize with all nulls (empty)
-    _statusData = List.generate(4, (_) => List.filled(7, null));
+    _initializeData();
+  }
+
+  @override
+  void didUpdateWidget(covariant _AccountabilityTable oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.initialData != oldWidget.initialData) {
+      _initializeData();
+    }
+  }
+
+  void _initializeData() {
+    // Default to all false
+    _statusData = List.generate(4, (_) => List.filled(7, false));
+
+    if (widget.initialData != null && widget.initialData!['disciplines'] != null) {
+      final disciplines = widget.initialData!['disciplines'] as List;
+      for (var d in disciplines) {
+        // Find row index by discipline name (key)
+        // API returns "discipline": "prayer"
+        final key = d['discipline'];
+        final rowIndex = _apiKeys.indexOf(key);
+        
+        if (rowIndex != -1) {
+          // Map days
+          for (int i = 0; i < 7; i++) {
+            final dayKey = _dayKeys[i];
+            // API returns boolean or null. Treat null as false.
+            if (d[dayKey] == true) {
+              _statusData[rowIndex][i] = true;
+            }
+          }
+        }
+      }
+    }
+  }
+
+  Future<void> _saveProgress() async {
+    setState(() => _isSaving = true);
+    
+    // Construct payload
+    List<Map<String, dynamic>> disciplinesPayload = [];
+    for (int i = 0; i < 4; i++) {
+      Map<String, dynamic> row = {
+        'discipline': _apiKeys[i],
+      };
+      for (int j = 0; j < 7; j++) {
+        row[_dayKeys[j]] = _statusData[i][j];
+      }
+      disciplinesPayload.add(row);
+    }
+    
+    final result = await widget.authService.saveDisciplineProgress(disciplinesPayload);
+    
+    setState(() => _isSaving = false);
+    
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(result['message'] ?? 'Progress saved')),
+      );
+    }
   }
 
   @override
@@ -562,7 +651,12 @@ class _AccountabilityTableState extends State<_AccountabilityTable> {
                 Row(
                   children: [
                     TextButton(
-                      onPressed: () {},
+                      onPressed: () {
+                         // TODO: Implement Previous Weeks Modal
+                         ScaffoldMessenger.of(context).showSnackBar(
+                           const SnackBar(content: Text('Previous Weeks feature coming soon')),
+                         );
+                      },
                       style: TextButton.styleFrom(
                         backgroundColor: const Color(0xFF1152D4).withOpacity(0.1),
                         foregroundColor: const Color(0xFF1152D4),
@@ -571,12 +665,14 @@ class _AccountabilityTableState extends State<_AccountabilityTable> {
                     ),
                     const SizedBox(width: 8),
                     ElevatedButton(
-                      onPressed: () {},
+                      onPressed: _isSaving ? null : _saveProgress,
                       style: ElevatedButton.styleFrom(
                         backgroundColor: const Color(0xFF1152D4),
                         foregroundColor: Colors.white,
                       ),
-                      child: const Text('Save Progress'),
+                      child: _isSaving 
+                        ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                        : const Text('Save Progress'),
                     ),
                   ],
                 )
@@ -616,7 +712,6 @@ class _AccountabilityTableState extends State<_AccountabilityTable> {
                         _rowTitles[index], 
                         _rowSubtitles[index], 
                         _statusData[index], 
-                        isNA: _naIndices[index]
                       );
                     }),
                   ),
@@ -629,7 +724,7 @@ class _AccountabilityTableState extends State<_AccountabilityTable> {
     ).animate().fadeIn(delay: 200.ms).slideY(begin: 0.2, end: 0);
   }
 
-  DataRow _buildRow(int rowIndex, String title, String subtitle, List<bool?> status, {List<int> isNA = const []}) {
+  DataRow _buildRow(int rowIndex, String title, String subtitle, List<bool> status) {
     List<DataCell> cells = [
       DataCell(
         Column(
@@ -645,12 +740,12 @@ class _AccountabilityTableState extends State<_AccountabilityTable> {
 
     for (int i = 0; i < 7; i++) {
         Widget cellContent;
-        // Interactive Checkbox for all cells, removing N/A Check
+        // Interactive Checkbox for all cells
         cellContent = Checkbox(
-          value: status[i] == true,
+          value: status[i],
           onChanged: (val) {
             setState(() {
-              _statusData[rowIndex][i] = val;
+              _statusData[rowIndex][i] = val ?? false;
             });
           },
           activeColor: const Color(0xFF1152D4),

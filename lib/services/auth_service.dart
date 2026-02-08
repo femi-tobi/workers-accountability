@@ -207,4 +207,115 @@ class AuthService {
       _token = null;
     }
   }
+  // =======================================================================
+  // Discipline APIs
+  // =======================================================================
+
+  Future<Map<String, dynamic>> getDashboardStats() async {
+    try {
+      if (_token == null) return {'success': false, 'message': 'No token found'};
+
+      final response = await http.get(
+        Uri.parse('https://workers-accountable.onrender.com/api/disciplines/dashboard'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $_token',
+        },
+      ).timeout(const Duration(seconds: 60));
+
+      if (response.statusCode == 200) {
+         final data = jsonDecode(response.body);
+         // Structure: { success: true, data: { dashboard: { ... } } }
+         if (data['success'] == true && data['data'] != null) {
+           return {'success': true, 'data': data['data']['dashboard']};
+         }
+         return {'success': false, 'message': 'Invalid dashboard data'};
+      }
+      return {'success': false, 'message': 'Failed to fetch dashboard stats'};
+    } catch (e) {
+      print('Get Dashboard Stats Error: $e');
+      return {'success': false, 'message': 'Connection error'};
+    }
+  }
+
+  Future<Map<String, dynamic>> getCurrentWeekDisciplines() async {
+    try {
+      if (_token == null) return {'success': false, 'message': 'No token found'};
+
+      final response = await http.get(
+        Uri.parse('https://workers-accountable.onrender.com/api/disciplines/current-week'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $_token',
+        },
+      ).timeout(const Duration(seconds: 60));
+
+      print('Current Week Response: ${response.body}');
+
+      if (response.statusCode == 200) {
+         final data = jsonDecode(response.body);
+         if (data['success'] == true && data['data'] != null) {
+           return {'success': true, 'data': data['data']};
+         }
+         return {'success': false, 'message': 'Invalid discipline data'};
+      }
+      return {'success': false, 'message': 'Failed to fetch current week'};
+    } catch (e) {
+      print('Get Current Week Error: $e');
+      return {'success': false, 'message': 'Connection error'};
+    }
+  }
+
+  Future<Map<String, dynamic>> saveDisciplineProgress(List<Map<String, dynamic>> disciplines) async {
+    try {
+      if (_token == null) return {'success': false, 'message': 'No token found'};
+
+      final payload = {'disciplines': disciplines};
+      print('Saving Discipline Payload: ${jsonEncode(payload)}');
+
+      final response = await http.post(
+        Uri.parse('https://workers-accountable.onrender.com/api/disciplines/save'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $_token',
+        },
+        body: jsonEncode(payload),
+      ).timeout(const Duration(seconds: 60));
+
+      print('Save Response: ${response.body}');
+
+      if (response.statusCode == 200) {
+        return {'success': true, 'message': 'Progress saved successfully'};
+      }
+      return {'success': false, 'message': 'Failed to save progress'};
+    } catch (e) {
+      print('Save Discipline Error: $e');
+      return {'success': false, 'message': 'Connection error'};
+    }
+  }
+
+  Future<List<dynamic>> getPreviousWeeksDisciplines() async {
+    try {
+      if (_token == null) return [];
+
+      final response = await http.get(
+        Uri.parse('https://workers-accountable.onrender.com/api/disciplines/previous-weeks?limit=4'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $_token',
+        },
+      ).timeout(const Duration(seconds: 60));
+
+      if (response.statusCode == 200) {
+         final data = jsonDecode(response.body);
+         if (data['success'] == true && data['data'] != null && data['data']['weeks'] != null) {
+           return data['data']['weeks'];
+         }
+      }
+      return [];
+    } catch (e) {
+      print('Get Previous Weeks Error: $e');
+      return [];
+    }
+  }
 }
