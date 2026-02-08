@@ -31,7 +31,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   bool _isLoading = false;
 
   // Data
-  List<Map<String, String>> _excos = []; // Dynamic list of {label, value}
+  List<Map<String, dynamic>> _excos = []; // Dynamic list of executive objects
   bool _isLoadingExcos = false;
 
   final List<String> _genders = ['Male', 'Female'];
@@ -68,13 +68,18 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   Future<void> _fetchExecutives() async {
     setState(() => _isLoadingExcos = true);
-    // Assuming _authService.getExecutives() now returns List<Map<String, String>>
-    final excos = await _authService.getExecutives();
-    if (mounted) {
-      setState(() {
-        _excos = excos;
-        _isLoadingExcos = false;
-      });
+    try {
+      final excos = await _authService.getExecutives();
+      if (mounted) {
+        setState(() {
+          _excos = excos;
+          _isLoadingExcos = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isLoadingExcos = false);
+      }
     }
   }
 
@@ -275,11 +280,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   ),
                   isExpanded: true,
                   icon: Icon(Icons.arrow_drop_down, color: !_isLoadingExcos ? const Color(0xFF1A237E) : Colors.grey),
-                  items: _excos.map((Map<String, String> item) {
+                  items: _excos.map((Map<String, dynamic> item) {
+                    final label = '${item['fullName']} (${item['position']})';
                     return DropdownMenuItem<String>(
-                      value: item['value'], // Use ID as value
+                      value: item['id'], // Use ID as value
                       child: Text(
-                        item['label']!, // Show Name (Position)
+                        label, 
                         style: GoogleFonts.poppins(),
                         overflow: TextOverflow.ellipsis,
                       ),

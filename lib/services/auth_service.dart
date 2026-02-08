@@ -108,7 +108,7 @@ class AuthService {
     }
   }
 
-  Future<List<Map<String, String>>> getExecutives() async {
+  Future<List<Map<String, dynamic>>> getExecutives() async {
     try {
       final response = await http.get(
         Uri.parse('https://workers-accountable.onrender.com/api/enums/executives'),
@@ -130,14 +130,12 @@ class AuthService {
             decoded['data']['executives'] is List) {
               
           final List<dynamic> rawList = decoded['data']['executives'];
-          return rawList.map<Map<String, String>>((item) {
-            final String name = item['fullName']?.toString() ?? 'Unknown';
-            final String position = item['position']?.toString() ?? '';
-            final String id = item['id']?.toString() ?? '';
-            
+          return rawList.map<Map<String, dynamic>>((item) {
             return {
-              'label': position.isNotEmpty ? '$name ($position)' : name,
-              'value': id
+              'id': item['id']?.toString() ?? '',
+              'fullName': item['fullName']?.toString() ?? 'Unknown',
+              'email': item['email']?.toString() ?? '',
+              'position': item['position']?.toString() ?? '',
             };
           }).toList();
         }
@@ -255,6 +253,10 @@ class AuthService {
       if (response.statusCode == 200) {
          final data = jsonDecode(response.body);
          if (data['success'] == true && data['data'] != null) {
+           // Unwrap 'weeklyDiscipline' if present
+           if (data['data']['weeklyDiscipline'] != null) {
+             return {'success': true, 'data': data['data']['weeklyDiscipline']};
+           }
            return {'success': true, 'data': data['data']};
          }
          return {'success': false, 'message': 'Invalid discipline data'};
@@ -294,6 +296,32 @@ class AuthService {
     }
   }
 
+  Future<Map<String, dynamic>> saveReflection(String reflection) async {
+    try {
+      if (_token == null) return {'success': false, 'message': 'No token found'};
+
+      final payload = {'reflection': reflection};
+      final response = await http.post(
+        Uri.parse('https://workers-accountable.onrender.com/api/disciplines/reflection'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $_token',
+        },
+        body: jsonEncode(payload),
+      ).timeout(const Duration(seconds: 30));
+
+      print('Save Reflection Response: ${response.body}');
+
+      if (response.statusCode == 200) {
+        return {'success': true, 'message': 'Reflection saved successfully'};
+      }
+      return {'success': false, 'message': 'Failed to save reflection'};
+    } catch (e) {
+      print('Save Reflection Error: $e');
+      return {'success': false, 'message': 'Connection error'};
+    }
+  }
+
   Future<List<dynamic>> getPreviousWeeksDisciplines() async {
     try {
       if (_token == null) return [];
@@ -315,6 +343,141 @@ class AuthService {
       return [];
     } catch (e) {
       print('Get Previous Weeks Error: $e');
+      return [];
+    }
+  }
+  }
+
+  // Executive Endpoints
+  Future<Map<String, dynamic>> getExecutiveDashboardStats() async {
+    try {
+      if (_token == null) return {'success': false, 'message': 'No token'};
+      final response = await http.get(
+        Uri.parse('https://workers-accountable.onrender.com/api/executive/dashboard'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $_token',
+        },
+      ).timeout(const Duration(seconds: 30));
+      
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        return data['success'] == true ? data['data'] : {};
+      }
+      return {};
+    } catch (e) {
+      print('Exec Stats Error: $e');
+      return {};
+    }
+  }
+
+  Future<List<dynamic>> getExecutiveWorkers() async {
+    try {
+      if (_token == null) return [];
+      final response = await http.get(
+        Uri.parse('https://workers-accountable.onrender.com/api/executive/workers'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $_token',
+        },
+      ).timeout(const Duration(seconds: 30));
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        return data['data']['workers'] ?? [];
+      }
+      return [];
+    } catch (e) {
+      print('Exec Workers Error: $e');
+      return [];
+    }
+  }
+
+  Future<List<dynamic>> getExecutiveWorkersProgress() async {
+    try {
+      if (_token == null) return [];
+      final response = await http.get(
+        Uri.parse('https://workers-accountable.onrender.com/api/executive/workers/progress'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $_token',
+        },
+      ).timeout(const Duration(seconds: 30));
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        // data['data']['workers'] contains the list with progress
+        return data['data']['workers'] ?? [];
+      }
+      return [];
+    } catch (e) {
+      print('Exec Progress Error: $e');
+      return [];
+    }
+  }
+
+  Future<Map<String, dynamic>> getWorkerDetails(String workerId) async {
+    try {
+      if (_token == null) return {};
+      final response = await http.get(
+        Uri.parse('https://workers-accountable.onrender.com/api/executive/workers/$workerId'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $_token',
+        },
+      ).timeout(const Duration(seconds: 30));
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        return data['data'] ?? {};
+      }
+      return {};
+    } catch (e) {
+      print('Worker Details Error: $e');
+      return {};
+    }
+  }
+
+  Future<List<dynamic>> getWorkerHistory(String workerId) async {
+    try {
+      if (_token == null) return [];
+      final response = await http.get(
+        Uri.parse('https://workers-accountable.onrender.com/api/executive/workers/$workerId/history'),
+        headers: {
+           'Content-Type': 'application/json',
+           'Authorization': 'Bearer $_token',
+        },
+      ).timeout(const Duration(seconds: 30));
+      
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        return data['data']['history'] ?? [];
+      }
+      return [];
+    } catch (e) {
+      print('Worker History Error: $e');
+      return [];
+    }
+  }
+
+  Future<List<dynamic>> getExecutiveReflections() async {
+    try {
+       if (_token == null) return [];
+      final response = await http.get(
+        Uri.parse('https://workers-accountable.onrender.com/api/executive/reflections'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $_token',
+        },
+      ).timeout(const Duration(seconds: 30));
+      
+      if (response.statusCode == 200) {
+         final data = jsonDecode(response.body);
+        return data['data']['reflections'] ?? [];
+      }
+      return [];
+    } catch (e) {
+      print('Exec Reflections Error: $e');
       return [];
     }
   }

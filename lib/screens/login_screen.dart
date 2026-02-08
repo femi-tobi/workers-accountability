@@ -3,6 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import '../services/auth_service.dart';
 import 'dashboard_screen.dart';
+import 'exco_dashboard_screen.dart';
 import 'register_screen.dart'; // We'll create this next
 
 class LoginScreen extends StatefulWidget {
@@ -37,11 +38,44 @@ class _LoginScreenState extends State<LoginScreen> {
     setState(() => _isLoading = false);
 
     if (result['success']) {
-       if (!mounted) return;
-       Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (context) => const DashboardScreen()),
-      );
+      // Check if user is an executive
+      final user = result['data']['user']; // Assuming structure based on AuthService parsing
+      final userEmail = user['email'];
+      
+      bool isExco = false;
+      Map<String, dynamic> excoData = {};
+
+      try {
+        final executives = await _authService.getExecutives();
+        for (var exco in executives) {
+          if (exco['email']?.toString().toLowerCase() == userEmail?.toString().toLowerCase()) {
+            isExco = true;
+            excoData = exco;
+            break;
+          }
+        }
+      } catch (e) {
+        print('Error checking executive status: $e');
+      }
+
+      if (!mounted) return;
+
+      if (isExco) {
+        // Merge exco position into user object for the dashboard
+        if (user is Map<String, dynamic>) {
+           user['excoPosition'] = excoData['position'];
+        }
+
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => ExcoDashboardScreen(user: user)),
+        );
+      } else {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const DashboardScreen()),
+        );
+      }
     } else {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(

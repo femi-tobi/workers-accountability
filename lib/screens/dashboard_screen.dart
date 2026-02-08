@@ -93,9 +93,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         _AccountabilityTable(
                           initialData: _currentWeekDisciplines,
                           authService: _authService,
+                          onSaveSuccess: _loadAllData,
                         ),
                         const SizedBox(height: 32),
-                        const _BottomSection(),
+                        _BottomSection(initialData: _currentWeekDisciplines),
                       ],
                     ),
                   ),
@@ -537,8 +538,13 @@ class _CardItem extends StatelessWidget {
 class _AccountabilityTable extends StatefulWidget {
   final Map<String, dynamic>? initialData;
   final AuthService authService;
+  final VoidCallback? onSaveSuccess;
 
-  const _AccountabilityTable({this.initialData, required this.authService});
+  const _AccountabilityTable({
+    this.initialData, 
+    required this.authService,
+    this.onSaveSuccess,
+  });
 
   @override
   State<_AccountabilityTable> createState() => _AccountabilityTableState();
@@ -557,6 +563,7 @@ class _AccountabilityTableState extends State<_AccountabilityTable> {
   // but we will interpret unchecked as false for API.
 
   late List<List<bool>> _statusData;
+  late List<List<bool>> _lockedData;
   bool _isSaving = false;
 
   @override
@@ -576,6 +583,7 @@ class _AccountabilityTableState extends State<_AccountabilityTable> {
   void _initializeData() {
     // Default to all false
     _statusData = List.generate(4, (_) => List.filled(7, false));
+    _lockedData = List.generate(4, (_) => List.filled(7, false));
 
     if (widget.initialData != null && widget.initialData!['disciplines'] != null) {
       final disciplines = widget.initialData!['disciplines'] as List;
@@ -592,6 +600,7 @@ class _AccountabilityTableState extends State<_AccountabilityTable> {
             // API returns boolean or null. Treat null as false.
             if (d[dayKey] == true) {
               _statusData[rowIndex][i] = true;
+              _lockedData[rowIndex][i] = true;
             }
           }
         }
@@ -622,6 +631,10 @@ class _AccountabilityTableState extends State<_AccountabilityTable> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(result['message'] ?? 'Progress saved')),
       );
+
+      if (result['success'] == true) {
+        widget.onSaveSuccess?.call();
+      }
     }
   }
 
@@ -689,6 +702,9 @@ class _AccountabilityTableState extends State<_AccountabilityTable> {
                  if (spacing < 24.0) spacing = 24.0;
               }
 
+              // Calculate today (0=Mon, 6=Sun)
+              final todayIndex = DateTime.now().weekday - 1;
+
               return SingleChildScrollView(
                 scrollDirection: Axis.horizontal,
                 child: ConstrainedBox(
@@ -696,15 +712,15 @@ class _AccountabilityTableState extends State<_AccountabilityTable> {
                    child: DataTable(
                     columnSpacing: spacing,
                     headingRowColor: MaterialStateProperty.all(const Color(0xFFF9FAFB)),
-                    columns: const [
-                      DataColumn(label: Text('SPIRITUAL DISCIPLINE')),
-                      DataColumn(label: Text('MON')),
-                      DataColumn(label: Text('TUE')),
-                      DataColumn(label: Text('WED')),
-                      DataColumn(label: Text('THU')),
-                      DataColumn(label: Text('FRI (Today)')),
-                      DataColumn(label: Text('SAT')),
-                      DataColumn(label: Text('SUN')),
+                    columns: [
+                      const DataColumn(label: Text('SPIRITUAL DISCIPLINE')),
+                      DataColumn(label: Text(todayIndex == 0 ? 'MON (Today)' : 'MON')),
+                      DataColumn(label: Text(todayIndex == 1 ? 'TUE (Today)' : 'TUE')),
+                      DataColumn(label: Text(todayIndex == 2 ? 'WED (Today)' : 'WED')),
+                      DataColumn(label: Text(todayIndex == 3 ? 'THU (Today)' : 'THU')),
+                      DataColumn(label: Text(todayIndex == 4 ? 'FRI (Today)' : 'FRI')),
+                      DataColumn(label: Text(todayIndex == 5 ? 'SAT (Today)' : 'SAT')),
+                      DataColumn(label: Text(todayIndex == 6 ? 'SUN (Today)' : 'SUN')),
                     ],
                     rows: List.generate(4, (index) {
                       return _buildRow(
@@ -712,6 +728,7 @@ class _AccountabilityTableState extends State<_AccountabilityTable> {
                         _rowTitles[index], 
                         _rowSubtitles[index], 
                         _statusData[index], 
+                        todayIndex,
                       );
                     }),
                   ),
@@ -724,7 +741,7 @@ class _AccountabilityTableState extends State<_AccountabilityTable> {
     ).animate().fadeIn(delay: 200.ms).slideY(begin: 0.2, end: 0);
   }
 
-  DataRow _buildRow(int rowIndex, String title, String subtitle, List<bool> status) {
+  DataRow _buildRow(int rowIndex, String title, String subtitle, List<bool> status, int todayIndex) {
     List<DataCell> cells = [
       DataCell(
         Column(
@@ -740,10 +757,16 @@ class _AccountabilityTableState extends State<_AccountabilityTable> {
 
     for (int i = 0; i < 7; i++) {
         Widget cellContent;
+        bool isLocked = _lockedData[rowIndex][i];
+        bool isToday = i == todayIndex;
+        
         // Interactive Checkbox for all cells
+        // Disabled if locked OR if it's not today
+        bool isDisabled = isLocked || !isToday;
+
         cellContent = Checkbox(
           value: status[i],
-          onChanged: (val) {
+          onChanged: isDisabled ? null : (val) {
             setState(() {
               _statusData[rowIndex][i] = val ?? false;
             });
@@ -761,7 +784,8 @@ class _AccountabilityTableState extends State<_AccountabilityTable> {
 
 
 class _BottomSection extends StatelessWidget {
-  const _BottomSection();
+  final Map<String, dynamic>? initialData;
+  const _BottomSection({this.initialData});
 
   @override
   Widget build(BuildContext context) {
@@ -773,11 +797,11 @@ class _BottomSection extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 if (isWide) ...[
-                  const Expanded(flex: 2, child: _Reflections()),
+                  Expanded(flex: 2, child: _Reflections(initialData: initialData)),
                   const SizedBox(width: 32),
                   const Expanded(flex: 1, child: _AcademicTasks()),
                 ] else ...[
-                  const _Reflections(),
+                  _Reflections(initialData: initialData),
                   const SizedBox(height: 32),
                   const _AcademicTasks(),
                 ]
@@ -788,8 +812,63 @@ class _BottomSection extends StatelessWidget {
   }
 }
 
-class _Reflections extends StatelessWidget {
-  const _Reflections();
+class _Reflections extends StatefulWidget {
+  final Map<String, dynamic>? initialData;
+  const _Reflections({this.initialData});
+
+  @override
+  State<_Reflections> createState() => _ReflectionsState();
+}
+
+class _ReflectionsState extends State<_Reflections> {
+  final _controller = TextEditingController();
+  final _authService = AuthService();
+  bool _isSaving = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _setInitialData();
+  }
+
+  @override
+  void didUpdateWidget(covariant _Reflections oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.initialData != oldWidget.initialData) {
+      _setInitialData();
+    }
+  }
+
+  void _setInitialData() {
+    if (widget.initialData != null && widget.initialData!['reflection'] != null) {
+      _controller.text = widget.initialData!['reflection'];
+    }
+  }
+
+  Future<void> _submitReflection() async {
+    if (_controller.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please enter a reflection')),
+      );
+      return;
+    }
+
+    setState(() => _isSaving = true);
+    final result = await _authService.saveReflection(_controller.text.trim());
+    setState(() => _isSaving = false);
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(result['message'])),
+      );
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -818,6 +897,7 @@ class _Reflections extends StatelessWidget {
               ),
               const SizedBox(height: 8),
               TextField(
+                controller: _controller,
                 maxLines: 6,
                 decoration: InputDecoration(
                   hintText: 'How has your spiritual journey been this week? Share any challenges or victories...',
@@ -831,9 +911,11 @@ class _Reflections extends StatelessWidget {
               Align(
                 alignment: Alignment.centerRight,
                 child: ElevatedButton.icon(
-                  onPressed: () {},
-                  icon: const Icon(Icons.send, size: 16),
-                  label: const Text('Submit Reflection'),
+                  onPressed: _isSaving ? null : _submitReflection,
+                  icon: _isSaving 
+                    ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                    : const Icon(Icons.send, size: 16),
+                  label: Text(_isSaving ? 'Saving...' : 'Submit Reflection'),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF1152D4),
                     foregroundColor: Colors.white,
