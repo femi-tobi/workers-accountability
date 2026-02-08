@@ -49,6 +49,9 @@ class _ExcoDashboardScreenState extends State<ExcoDashboardScreen> with SingleTi
   Future<void> _fetchDashboardData() async {
     setState(() => _isLoading = true);
     try {
+      // Diagnostic call
+      await _authService.getExecutiveWorkers(); 
+
       final stats = await _authService.getExecutiveDashboardStats();
       final workers = await _authService.getExecutiveWorkersProgress();
       final reflections = await _authService.getExecutiveReflections();
@@ -66,7 +69,11 @@ class _ExcoDashboardScreenState extends State<ExcoDashboardScreen> with SingleTi
       if (mounted) {
         setState(() => _isLoading = false);
         ScaffoldMessenger.of(context).showSnackBar(
-           SnackBar(content: Text('Error loading dashboard: $e')),
+           SnackBar(
+             content: Text('Error loading dashboard: $e'),
+             duration: const Duration(seconds: 5),
+             action: SnackBarAction(label: 'Retry', onPressed: _fetchDashboardData),
+           ),
         );
       }
     }

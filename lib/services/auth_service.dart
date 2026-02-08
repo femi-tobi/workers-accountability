@@ -349,17 +349,20 @@ class AuthService {
 
 
   // Executive Endpoints
+  // Executive Endpoints
   Future<Map<String, dynamic>> getExecutiveDashboardStats() async {
     try {
       if (_token == null) return {'success': false, 'message': 'No token'};
       final response = await http.get(
-        Uri.parse('https://workers-accountable.onrender.com/api/executive/dashboard'),
+        Uri.parse('$_baseUrl/api/executive/dashboard'),
         headers: {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer $_token',
         },
       ).timeout(const Duration(seconds: 30));
       
+      print('Exec Dashboard Raw: ${response.body}'); // DEBUG
+
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         return data['success'] == true ? (data['data']['summary'] ?? {}) : {};
@@ -375,12 +378,14 @@ class AuthService {
     try {
       if (_token == null) return [];
       final response = await http.get(
-        Uri.parse('https://workers-accountable.onrender.com/api/executive/workers'),
+        Uri.parse('$_baseUrl/api/executive/workers'),
         headers: {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer $_token',
         },
       ).timeout(const Duration(seconds: 30));
+
+      print('Exec Workers List Raw: ${response.body}'); // DEBUG
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
@@ -397,17 +402,24 @@ class AuthService {
     try {
       if (_token == null) return [];
       final response = await http.get(
-        Uri.parse('https://workers-accountable.onrender.com/api/executive/workers/progress'),
+        Uri.parse('$_baseUrl/api/executive/workers/progress'),
         headers: {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer $_token',
         },
       ).timeout(const Duration(seconds: 30));
 
+      print('Exec Progress Raw: ${response.body}'); // DEBUG
+
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
-        // data['data']['progress'] contains the list with progress
-        return data['data']['progress'] ?? [];
+        // Try 'progress' first, then fallback to 'workers' just in case
+        if (data['data']['progress'] != null) {
+          return data['data']['progress'];
+        } else if (data['data']['workers'] != null) {
+           return data['data']['workers'];
+        }
+        return [];
       }
       return [];
     } catch (e) {
@@ -420,7 +432,7 @@ class AuthService {
     try {
       if (_token == null) return {};
       final response = await http.get(
-        Uri.parse('https://workers-accountable.onrender.com/api/executive/workers/$workerId'),
+        Uri.parse('$_baseUrl/api/executive/workers/$workerId'),
         headers: {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer $_token',
@@ -442,7 +454,7 @@ class AuthService {
     try {
       if (_token == null) return [];
       final response = await http.get(
-        Uri.parse('https://workers-accountable.onrender.com/api/executive/workers/$workerId/history'),
+        Uri.parse('$_baseUrl/api/executive/workers/$workerId/history'),
         headers: {
            'Content-Type': 'application/json',
            'Authorization': 'Bearer $_token',
@@ -464,7 +476,7 @@ class AuthService {
     try {
        if (_token == null) return [];
       final response = await http.get(
-        Uri.parse('https://workers-accountable.onrender.com/api/executive/reflections'),
+        Uri.parse('$_baseUrl/api/executive/reflections'),
         headers: {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer $_token',
