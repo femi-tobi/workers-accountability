@@ -109,7 +109,12 @@ class _Sidebar extends StatelessWidget {
                     color: const Color(0xFF1152D4),
                     borderRadius: BorderRadius.circular(8),
                   ),
-                  child: const Icon(Icons.anchor, color: Colors.white),
+                  child: Image.asset(
+                    'assets/anchor.png',
+                    width: 24,
+                    height: 24,
+                    color: Colors.white, // Keep it white if it's a solid shape, or remove if it's full color
+                  ),
                 ),
                 const SizedBox(width: 12),
                 Column(

@@ -168,6 +168,21 @@ class _RegisterScreenState extends State<RegisterScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+             Center( // added center logo
+              child: Container(
+                  padding: const EdgeInsets.all(12),
+                  margin: const EdgeInsets.only(bottom: 24),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF1A237E).withOpacity(0.1),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Image.asset(
+                    'assets/anchor.png',
+                    width: 40,
+                    height: 40,
+                  ),
+                ).animate().scale(duration: 600.ms, curve: Curves.easeOutBack),
+            ),
             Text(
               'Create Account',
               style: GoogleFonts.poppins(

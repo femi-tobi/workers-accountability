@@ -105,10 +105,17 @@ class _LoginScreenState extends State<LoginScreen> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   // Logo or Icon
-                  Icon(
-                    Icons.work_history_outlined,
-                    size: 80,
-                    color: Colors.white,
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.1),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Image.asset(
+                      'assets/anchor.png',
+                      width: 80,
+                      height: 80,
+                    ),
                   ).animate().fadeIn(duration: 800.ms).slideY(begin: -0.5, end: 0),
                   const SizedBox(height: 20),
                   Text(

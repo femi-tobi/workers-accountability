@@ -148,6 +148,8 @@ class AuthService {
         },
       ).timeout(const Duration(seconds: 60));
 
+      print('Get Profile Response: "${response.body}"'); // Debug
+
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         return {'success': true, 'data': data};
