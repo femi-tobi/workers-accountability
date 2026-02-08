@@ -33,9 +33,25 @@ class AuthService {
       }
 
       if (response.statusCode == 200) {
-        if (data['token'] != null) {
-          _token = data['token'];
+        // Response structure: { "success": true, "data": { "user": {...}, "tokens": { "accessToken": "..." } } }
+        if (data is Map && data.containsKey('data') && data['data'] is Map) {
+          final innerData = data['data'];
+          
+          // Extract Token
+          if (innerData['tokens'] != null && innerData['tokens']['accessToken'] != null) {
+            _token = innerData['tokens']['accessToken'];
+          } else if (innerData['token'] != null) {
+             _token = innerData['token'];
+          }
+
+          return {'success': true, 'data': innerData};
+        } 
+        
+        // Fallback for flat structure
+        if (data is Map && data['token'] != null) {
+           _token = data['token'];
         }
+        
         return {'success': true, 'data': data};
       } else {
         return {
@@ -152,6 +168,17 @@ class AuthService {
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
+        
+        // Handle: { "data": { "user": { ... } } }
+        if (data is Map && data.containsKey('data') && data['data'] is Map) {
+          final innerData = data['data'];
+          if (innerData['user'] != null && innerData['user'] is Map) {
+             return {'success': true, 'data': innerData['user']};
+          }
+          // Fallback for { "data": { ... } } (flat user in data)
+          return {'success': true, 'data': innerData};
+        }
+
         return {'success': true, 'data': data};
       } else {
         return {'success': false, 'message': 'Failed to fetch profile'};
