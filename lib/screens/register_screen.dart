@@ -52,6 +52,58 @@ class _RegisterScreenState extends State<RegisterScreen> {
     return [];
   }
 
+  void _register() async {
+    setState(() => _isLoading = true);
+
+    if (_passwordController.text != _confirmPasswordController.text) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Passwords do not match')),
+      );
+      setState(() => _isLoading = false);
+      return;
+    }
+
+    if (_nameController.text.isEmpty || _emailController.text.isEmpty || _phoneController.text.isEmpty) {
+       ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please fill in named, email and phone fields')),
+      );
+      setState(() => _isLoading = false);
+      return;
+    }
+
+    // Construct user data map matching API expectations
+    final userData = {
+      'name': _nameController.text.trim(),
+      'email': _emailController.text.trim(),
+      'phone': _phoneController.text.trim(),
+      'gender': _selectedGender,
+      'hostel': _selectedHostel,
+      'department': _departmentController.text.trim(),
+      'exco_position': _selectedExco,
+      'password': _passwordController.text,
+    };
+
+    final result = await _authService.register(userData);
+
+    setState(() => _isLoading = false);
+
+    if (result['success']) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Registration successful! Please login.')),
+      );
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => const LoginScreen()),
+      );
+    } else {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(result['message'])),
+      );
+    }
+  }
+
   @override
   void dispose() {
     _nameController.dispose();
@@ -156,39 +208,31 @@ class _RegisterScreenState extends State<RegisterScreen> {
             const SizedBox(height: 16),
             _buildTextField(controller: _confirmPasswordController, label: 'Confirm Password', icon: Icons.lock_outline, isPassword: true),
             
-            const SizedBox(height: 40),
-            
+            const SizedBox(height: 32),
             SizedBox(
               width: double.infinity,
               height: 55,
               child: ElevatedButton(
-                onPressed: () {
-                  // TODO: Implement Registration Logic
-                  if (_passwordController.text != _confirmPasswordController.text) {
-                     ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Passwords do not match')),
-                    );
-                    return;
-                  }
-                  
-                  Navigator.pushReplacement(
-                      context, MaterialPageRoute(builder: (context) => const DashboardScreen()));
-                },
+                onPressed: _isLoading ? null : _register,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF1A237E),
+                  backgroundColor: const Color(0xFF1152D4),
                   foregroundColor: Colors.white,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  elevation: 2,
+                  elevation: 4,
+                  shadowColor: const Color(0xFF1152D4).withOpacity(0.4),
                 ),
-                child: Text(
-                  'REGISTER',
-                  style: GoogleFonts.poppins(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
+                child: _isLoading 
+                  ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                  : Text(
+                    'REGISTER',
+                    style: GoogleFonts.manrope(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: 1.2,
+                    ),
                   ),
-                ),
               ),
             ).animate().fadeIn(delay: 800.ms).slideY(begin: 0.2, end: 0),
             const SizedBox(height: 20),
