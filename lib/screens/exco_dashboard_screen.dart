@@ -50,22 +50,43 @@ class _ExcoDashboardScreenState extends State<ExcoDashboardScreen> with SingleTi
     setState(() => _isLoading = true);
     try {
       // Diagnostic call
-      await _authService.getExecutiveWorkers(); 
-
+      final workersList = await _authService.getExecutiveWorkers(); 
       final stats = await _authService.getExecutiveDashboardStats();
       final workers = await _authService.getExecutiveWorkersProgress();
       final reflections = await _authService.getExecutiveReflections();
+
+      // Check if data is valid, if not, use mock
+      if (stats.isEmpty && workers.isEmpty && reflections.isEmpty) {
+        throw Exception('API returned empty data');
+      }
 
       if (mounted) {
         setState(() {
           _stats = stats;
           _workers = workers;
           _filteredWorkers = workers;
-          _reflections = reflections;
+          
+          // Aggregate reflections from workers list if they exist there
+          final List<dynamic> workerReflections = [];
+          for (var w in workers) {
+            if (w['reflection'] != null && (w['reflection'] as String).isNotEmpty) {
+               final workerProfile = w['worker'] ?? {};
+               workerReflections.add({
+                 'workerName': workerProfile['fullName'] ?? 'Unknown',
+                 'date': w['reflectionSubmittedAt'] ?? DateTime.now().toIso8601String(),
+                 'content': w['reflection'],
+               });
+            }
+          }
+          
+          // Combine with direct reflections endpoint, avoiding duplicates if possible (simple concatenation for now)
+          _reflections = [...reflections, ...workerReflections];
+          
           _isLoading = false;
         });
       }
     } catch (e) {
+      print('Dashboard Load Error: $e');
       if (mounted) {
         setState(() => _isLoading = false);
         ScaffoldMessenger.of(context).showSnackBar(

@@ -197,7 +197,7 @@ class _WorkerDetailScreenState extends State<WorkerDetailScreen> {
               borderRadius: BorderRadius.circular(12),
               side: const BorderSide(color: Color(0xFFDBDFE6))),
           margin: const EdgeInsets.only(bottom: 12),
-          child: ListTile(
+          child: ExpansionTile(
             title: Text(
               '${dateFormat.format(startDate)} - ${dateFormat.format(endDate)}',
               style: GoogleFonts.manrope(fontWeight: FontWeight.bold),
@@ -217,6 +217,12 @@ class _WorkerDetailScreenState extends State<WorkerDetailScreen> {
                 ),
               ),
             ),
+            children: [
+              Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: _WeeklyTable(data: week),
+              ),
+            ],
           ),
         );
       },
@@ -261,6 +267,87 @@ class _StatCard extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+class _WeeklyTable extends StatelessWidget {
+  final Map<String, dynamic> data;
+
+  const _WeeklyTable({required this.data});
+
+  @override
+  Widget build(BuildContext context) {
+    final disciplines = data['disciplines'] as List? ?? [];
+    final days = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
+    final rows = ['Prayer', 'Bible Study', 'Fasting', 'Evangelism'];
+    final apiKeys = ['prayer', 'bible_study', 'fasting', 'evangelism'];
+    final dayKeys = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
+
+    return Column(
+      children: [
+        // Header
+        Row(
+          children: [
+            const Expanded(flex: 3, child: SizedBox()),
+            ...days.map((d) => Expanded(
+              child: Center(
+                child: Text(d, style: GoogleFonts.manrope(fontWeight: FontWeight.bold, color: Colors.grey)),
+              ),
+            )),
+          ],
+        ),
+        const SizedBox(height: 8),
+        // Rows
+        ...List.generate(rows.length, (rowIndex) {
+          final label = rows[rowIndex];
+          final apiKey = apiKeys[rowIndex];
+          
+          // Find discipline data
+          final disciplineData = disciplines.firstWhere(
+            (d) => d['discipline'] == apiKey,
+            orElse: () => {},
+          );
+
+          return Padding(
+            padding: const EdgeInsets.symmetric(vertical: 8.0),
+            child: Row(
+              children: [
+                Expanded(
+                  flex: 3,
+                  child: Text(
+                    label,
+                    style: GoogleFonts.manrope(fontWeight: FontWeight.w600),
+                  ),
+                ),
+                ...List.generate(7, (dayIndex) {
+                  final dayKey = dayKeys[dayIndex];
+                  final isCompleted = disciplineData[dayKey] == true;
+
+                  return Expanded(
+                    child: Center(
+                      child: Container(
+                        width: 24,
+                        height: 24,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: isCompleted ? const Color(0xFF1152D4) : Colors.transparent,
+                          border: Border.all(
+                            color: isCompleted ? const Color(0xFF1152D4) : Colors.grey.withOpacity(0.3),
+                          ),
+                        ),
+                        child: isCompleted
+                            ? const Icon(Icons.check, size: 14, color: Colors.white)
+                            : null,
+                      ),
+                    ),
+                  );
+                }),
+              ],
+            ),
+          );
+        }),
+      ],
     );
   }
 }

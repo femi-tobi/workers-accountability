@@ -349,12 +349,14 @@ class AuthService {
 
 
   // Executive Endpoints
+  static const String _rootUrl = 'https://workers-accountable.onrender.com';
+
   // Executive Endpoints
   Future<Map<String, dynamic>> getExecutiveDashboardStats() async {
     try {
       if (_token == null) return {'success': false, 'message': 'No token'};
       final response = await http.get(
-        Uri.parse('$_baseUrl/api/executive/dashboard'),
+        Uri.parse('$_rootUrl/api/executive/dashboard'),
         headers: {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer $_token',
@@ -378,7 +380,7 @@ class AuthService {
     try {
       if (_token == null) return [];
       final response = await http.get(
-        Uri.parse('$_baseUrl/api/executive/workers'),
+        Uri.parse('$_rootUrl/api/executive/workers'),
         headers: {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer $_token',
@@ -402,7 +404,7 @@ class AuthService {
     try {
       if (_token == null) return [];
       final response = await http.get(
-        Uri.parse('$_baseUrl/api/executive/workers/progress'),
+        Uri.parse('$_rootUrl/api/executive/workers/progress'),
         headers: {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer $_token',
@@ -432,7 +434,7 @@ class AuthService {
     try {
       if (_token == null) return {};
       final response = await http.get(
-        Uri.parse('$_baseUrl/api/executive/workers/$workerId'),
+        Uri.parse('$_rootUrl/api/executive/workers/$workerId'),
         headers: {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer $_token',
@@ -454,7 +456,7 @@ class AuthService {
     try {
       if (_token == null) return [];
       final response = await http.get(
-        Uri.parse('$_baseUrl/api/executive/workers/$workerId/history'),
+        Uri.parse('$_rootUrl/api/executive/workers/$workerId/history'),
         headers: {
            'Content-Type': 'application/json',
            'Authorization': 'Bearer $_token',
@@ -476,7 +478,7 @@ class AuthService {
     try {
        if (_token == null) return [];
       final response = await http.get(
-        Uri.parse('$_baseUrl/api/executive/reflections'),
+        Uri.parse('$_rootUrl/api/executive/reflections'),
         headers: {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer $_token',
