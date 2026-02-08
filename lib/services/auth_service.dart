@@ -362,7 +362,7 @@ class AuthService {
       
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
-        return data['success'] == true ? data['data'] : {};
+        return data['success'] == true ? (data['data']['summary'] ?? {}) : {};
       }
       return {};
     } catch (e) {
@@ -406,8 +406,8 @@ class AuthService {
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
-        // data['data']['workers'] contains the list with progress
-        return data['data']['workers'] ?? [];
+        // data['data']['progress'] contains the list with progress
+        return data['data']['progress'] ?? [];
       }
       return [];
     } catch (e) {
