@@ -1,10 +1,61 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import '../services/auth_service.dart';
+import 'dashboard_screen.dart';
 import 'register_screen.dart'; // We'll create this next
 
-class LoginScreen extends StatelessWidget {
+class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
+
+  @override
+  State<LoginScreen> createState() => _LoginScreenState();
+}
+
+class _LoginScreenState extends State<LoginScreen> {
+  final _emailController = TextEditingController();
+  final _passwordController = TextEditingController();
+  final _authService = AuthService();
+  bool _isLoading = false;
+
+  void _login() async {
+    setState(() => _isLoading = true);
+    
+    final email = _emailController.text.trim();
+    final password = _passwordController.text.trim();
+
+    if (email.isEmpty || password.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please fill in all fields')),
+      );
+      setState(() => _isLoading = false);
+      return;
+    }
+
+    final result = await _authService.login(email, password);
+
+    setState(() => _isLoading = false);
+
+    if (result['success']) {
+       if (!mounted) return;
+       Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => const DashboardScreen()),
+      );
+    } else {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(result['message'])),
+      );
+    }
+  }
+
+  @override
+  void dispose() {
+    _emailController.dispose();
+    _passwordController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -104,12 +155,12 @@ class LoginScreen extends StatelessWidget {
                         ),
                         const SizedBox(height: 30),
                         TextField(
+                          controller: _emailController,
                           decoration: InputDecoration(
-                            hintText: 'Email Address',
+                            labelText: 'Email Address',
                             prefixIcon: const Icon(Icons.email_outlined),
                             border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(12),
-                              borderSide: BorderSide.none,
                             ),
                             filled: true,
                             fillColor: Colors.grey[100],
@@ -118,13 +169,13 @@ class LoginScreen extends StatelessWidget {
                         ),
                         const SizedBox(height: 20),
                         TextField(
+                          controller: _passwordController,
                           obscureText: true,
                           decoration: InputDecoration(
-                            hintText: 'Password',
+                            labelText: 'Password',
                             prefixIcon: const Icon(Icons.lock_outline),
                             border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(12),
-                              borderSide: BorderSide.none,
                             ),
                             filled: true,
                             fillColor: Colors.grey[100],
@@ -136,27 +187,28 @@ class LoginScreen extends StatelessWidget {
                           width: double.infinity,
                           height: 50,
                           child: ElevatedButton(
-                            onPressed: () {
-                              // TODO: Implement Login Logic
-                            },
+                            onPressed: _isLoading ? null : _login,
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFF1A237E),
+                              backgroundColor: const Color(0xFF1152D4),
                               foregroundColor: Colors.white,
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(12),
                               ),
                               elevation: 5,
+                              shadowColor: const Color(0xFF1152D4).withOpacity(0.4),
                             ),
-                            child: Text(
-                              'LOGIN',
-                              style: GoogleFonts.poppins(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w600,
+                            child: _isLoading 
+                              ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                              : Text(
+                                'LOGIN',
+                                style: GoogleFonts.manrope(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                  letterSpacing: 1.2,
+                                ),
                               ),
-                            ),
                           ),
-                        ),
-                        const SizedBox(height: 20),
+                        ),const SizedBox(height: 20),
                         Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [

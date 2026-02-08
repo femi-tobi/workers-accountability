@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:intl/intl.dart';
+import 'login_screen.dart';
 
 class DashboardScreen extends StatelessWidget {
   const DashboardScreen({super.key});
@@ -128,7 +129,18 @@ class _Sidebar extends StatelessWidget {
                     ],
                   ),
                 ),
-                const Icon(Icons.logout, color: Color(0xFF616F89), size: 20),
+                const SizedBox(width: 8),
+                IconButton(
+                  icon: const Icon(Icons.logout, color: Color(0xFF616F89), size: 20),
+                  onPressed: () {
+                    // Navigate to Login and remove all previous routes
+                    Navigator.pushAndRemoveUntil(
+                      context, 
+                      MaterialPageRoute(builder: (context) => const LoginScreen()), 
+                      (route) => false,
+                    );
+                  },
+                ),
               ],
             ),
           )
@@ -314,7 +326,7 @@ class _SummaryCards extends StatelessWidget {
       crossAxisCount: crossAxisCount,
       crossAxisSpacing: 24,
       mainAxisSpacing: 24,
-      childAspectRatio: 2.5,
+      childAspectRatio: 2.0,
       physics: const NeverScrollableScrollPhysics(),
       children: [
         _CardItem(
@@ -392,7 +404,7 @@ class _CardItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(24),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
@@ -447,8 +459,39 @@ class _CardItem extends StatelessWidget {
   }
 }
 
-class _AccountabilityTable extends StatelessWidget {
+class _AccountabilityTable extends StatefulWidget {
   const _AccountabilityTable();
+
+  @override
+  State<_AccountabilityTable> createState() => _AccountabilityTableState();
+}
+
+class _AccountabilityTableState extends State<_AccountabilityTable> {
+  // Data structure to hold the state of the checkboxes
+  // Rows: Prayer, Bible Study, Fasting, Evangelism
+  // Columns: Mon - Sun (7 days)
+  // Value: true (checked), false (unchecked - not used here much if we want tri-state), null (empty)
+  // For this design, let's assume:
+  // null = empty/unchecked
+  // true = checked/done
+  
+  final List<String> _rowTitles = ['Prayer', 'Bible Study', 'Fasting', 'Evangelism'];
+  final List<String> _rowSubtitles = ['1 hour minimum', 'Personal deep study', 'Weekly requirement', 'Soul winning'];
+  final List<List<int>> _naIndices = [
+    [], // Prayer
+    [], // Bible Study
+    [], // Fasting
+    [], // Evangelism
+  ];
+
+  late List<List<bool?>> _statusData;
+
+  @override
+  void initState() {
+    super.initState();
+    // Initialize with all nulls (empty)
+    _statusData = List.generate(4, (_) => List.filled(7, null));
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -498,34 +541,52 @@ class _AccountabilityTable extends StatelessWidget {
             ),
           ),
           const Divider(height: 1, color: Color(0xFFDBDFE6)),
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: DataTable(
-              headingRowColor: MaterialStateProperty.all(const Color(0xFFF9FAFB)),
-              columns: const [
-                DataColumn(label: Text('SPIRITUAL DISCIPLINE')),
-                DataColumn(label: Text('MON')),
-                DataColumn(label: Text('TUE')),
-                DataColumn(label: Text('WED')),
-                DataColumn(label: Text('THU')),
-                DataColumn(label: Text('FRI (Today)')),
-                DataColumn(label: Text('SAT')),
-                DataColumn(label: Text('SUN')),
-              ],
-              rows: [
-                _buildRow('Prayer', '1 hour minimum', [true, true, true, true, null, false, false]),
-                _buildRow('Bible Study', 'Personal deep study', [true, false, true, true, null, false, false]),
-                _buildRow('Fasting', 'Weekly requirement', [null, null, true, null, null, false, null], isNA: [0, 1, 3, 4, 6]),
-                _buildRow('Evangelism', 'Soul winning', [false, true, false, true, null, false, false]),
-              ],
-            ),
+          LayoutBuilder(
+            builder: (context, constraints) {
+              // Calculate column spacing to fit width if on desktop
+              double spacing = 24.0; 
+              if (constraints.maxWidth > 900) {
+                 spacing = (constraints.maxWidth - 300) / 8; 
+                 if (spacing < 24.0) spacing = 24.0;
+              }
+
+              return SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: ConstrainedBox(
+                   constraints: BoxConstraints(minWidth: constraints.maxWidth),
+                   child: DataTable(
+                    columnSpacing: spacing,
+                    headingRowColor: MaterialStateProperty.all(const Color(0xFFF9FAFB)),
+                    columns: const [
+                      DataColumn(label: Text('SPIRITUAL DISCIPLINE')),
+                      DataColumn(label: Text('MON')),
+                      DataColumn(label: Text('TUE')),
+                      DataColumn(label: Text('WED')),
+                      DataColumn(label: Text('THU')),
+                      DataColumn(label: Text('FRI (Today)')),
+                      DataColumn(label: Text('SAT')),
+                      DataColumn(label: Text('SUN')),
+                    ],
+                    rows: List.generate(4, (index) {
+                      return _buildRow(
+                        index,
+                        _rowTitles[index], 
+                        _rowSubtitles[index], 
+                        _statusData[index], 
+                        isNA: _naIndices[index]
+                      );
+                    }),
+                  ),
+                ),
+              );
+            }
           ),
         ],
       ),
     ).animate().fadeIn(delay: 200.ms).slideY(begin: 0.2, end: 0);
   }
 
-  DataRow _buildRow(String title, String subtitle, List<bool?> status, {List<int> isNA = const []}) {
+  DataRow _buildRow(int rowIndex, String title, String subtitle, List<bool?> status, {List<int> isNA = const []}) {
     List<DataCell> cells = [
       DataCell(
         Column(
@@ -541,26 +602,17 @@ class _AccountabilityTable extends StatelessWidget {
 
     for (int i = 0; i < 7; i++) {
         Widget cellContent;
-        if (isNA.contains(i)) {
-             cellContent = Text('N/A', style: GoogleFonts.manrope(fontSize: 12, color: Colors.grey));
-        } else if (status[i] == true) {
-            cellContent = const Icon(Icons.check_circle, color: Colors.green);
-        } else if (status[i] == false) {
-             cellContent = const Icon(Icons.cancel, color: Colors.redAccent);
-        } else {
-             // Null means today/input or future
-             if (i == 4) { // Friday (Today) placeholder logic
-                 cellContent = Checkbox(value: false, onChanged: (v) {}, activeColor: const Color(0xFF1152D4));
-             } else {
-                 cellContent = Container(
-                     width: 24, height: 24,
-                     decoration: BoxDecoration(
-                         borderRadius: BorderRadius.circular(4),
-                         border: Border.all(color: Colors.grey.shade300, style: BorderStyle.none)// DASHED BORDER SIMPLIFIED
-                     ),
-                     child: const Icon(Icons.check_box_outline_blank, color: Colors.grey, size: 20));
-             }
-        }
+        // Interactive Checkbox for all cells, removing N/A Check
+        cellContent = Checkbox(
+          value: status[i] == true,
+          onChanged: (val) {
+            setState(() {
+              _statusData[rowIndex][i] = val;
+            });
+          },
+          activeColor: const Color(0xFF1152D4),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
+        );
         
       cells.add(DataCell(Center(child: cellContent)));
     }

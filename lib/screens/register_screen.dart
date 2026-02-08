@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import '../services/auth_service.dart';
 import 'dashboard_screen.dart';
+import 'login_screen.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -20,9 +22,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final _confirmPasswordController = TextEditingController();
 
   // Selections
-  String? _selectedExco;
   String? _selectedGender;
   String? _selectedHostel;
+  String? _selectedExco;
+
+  final _authService = AuthService();
+  bool _isLoading = false;
 
   // Data
   final List<String> _excos = [

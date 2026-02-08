@@ -27,6 +27,7 @@ migrate_working_dir/
 **/doc/api/
 **/ios/Flutter/.last_build_id
 .dart_tool/
+.flutter-plugins
 .flutter-plugins-dependencies
 .pub-cache/
 .pub/
@@ -43,3 +44,28 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# Windows
+thumbs.db
+ehthumbs.db
+desktop.ini
+$RECYCLE.BIN/
+*.cab
+*.msi
+*.msm
+*.msp
+*.lnk
+
+# Flutter Windows
+windows/flutter/ephemeral/
+windows/runner/resources/
+
+# Flutter Linux
+linux/flutter/ephemeral/
+
+# Flutter MacOS
+macos/Flutter/ephemeral/
+
+# Web related
+web/icons/
+web/splash/
