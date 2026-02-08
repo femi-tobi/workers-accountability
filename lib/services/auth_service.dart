@@ -346,7 +346,7 @@ class AuthService {
       return [];
     }
   }
-  }
+
 
   // Executive Endpoints
   Future<Map<String, dynamic>> getExecutiveDashboardStats() async {
