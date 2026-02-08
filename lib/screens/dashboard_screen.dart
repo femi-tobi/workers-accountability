@@ -2,10 +2,49 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:intl/intl.dart';
+import '../services/auth_service.dart';
 import 'login_screen.dart';
 
-class DashboardScreen extends StatelessWidget {
+class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
+
+  @override
+  State<DashboardScreen> createState() => _DashboardScreenState();
+}
+
+class _DashboardScreenState extends State<DashboardScreen> {
+  final _authService = AuthService();
+  Map<String, dynamic>? _user;
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchProfile();
+  }
+
+  Future<void> _fetchProfile() async {
+    final result = await _authService.getProfile();
+    if (mounted) {
+      setState(() {
+        if (result['success']) {
+          _user = result['data'];
+        }
+        _isLoading = false;
+      });
+    }
+  }
+
+  Future<void> _handleLogout() async {
+    await _authService.logout();
+    if (mounted) {
+      Navigator.pushAndRemoveUntil(
+        context, 
+        MaterialPageRoute(builder: (context) => const LoginScreen()), 
+        (route) => false,
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -16,7 +55,7 @@ class DashboardScreen extends StatelessWidget {
       backgroundColor: const Color(0xFFF6F6F8), // background-light
       body: Row(
         children: [
-          if (isDesktop) const _Sidebar(),
+          if (isDesktop) _Sidebar(user: _user, onLogout: _handleLogout, isLoading: _isLoading),
           Expanded(
             child: Column(
               children: [
@@ -41,13 +80,17 @@ class DashboardScreen extends StatelessWidget {
           ),
         ],
       ),
-      drawer: isDesktop ? null : const Drawer(child: _Sidebar()),
+      drawer: isDesktop ? null : Drawer(child: _Sidebar(user: _user, onLogout: _handleLogout, isLoading: _isLoading)),
     );
   }
 }
 
 class _Sidebar extends StatelessWidget {
-  const _Sidebar();
+  final Map<String, dynamic>? user;
+  final VoidCallback onLogout;
+  final bool isLoading;
+
+  const _Sidebar({this.user, required this.onLogout, this.isLoading = false});
 
   @override
   Widget build(BuildContext context) {
@@ -114,17 +157,19 @@ class _Sidebar extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'John Doe',
+                        isLoading ? 'Loading...' : (user?['fullName'] ?? 'User'),
                         style: GoogleFonts.manrope(
                           fontWeight: FontWeight.bold,
                           fontSize: 14,
                           color: const Color(0xFF111318),
                         ),
+                        overflow: TextOverflow.ellipsis,
                       ),
                       Text(
-                        'Senior Lecturer',
+                        isLoading ? '...' : (user?['workforceDepartment']?.toString().toUpperCase() ?? 'WORKER'),
                         style: GoogleFonts.manrope(
                             fontSize: 12, color: const Color(0xFF616F89)),
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ],
                   ),
@@ -132,14 +177,7 @@ class _Sidebar extends StatelessWidget {
                 const SizedBox(width: 8),
                 IconButton(
                   icon: const Icon(Icons.logout, color: Color(0xFF616F89), size: 20),
-                  onPressed: () {
-                    // Navigate to Login and remove all previous routes
-                    Navigator.pushAndRemoveUntil(
-                      context, 
-                      MaterialPageRoute(builder: (context) => const LoginScreen()), 
-                      (route) => false,
-                    );
-                  },
+                  onPressed: onLogout,
                 ),
               ],
             ),

@@ -25,23 +25,58 @@ class _RegisterScreenState extends State<RegisterScreen> {
   String? _selectedGender;
   String? _selectedHostel;
   String? _selectedExco;
+  String? _selectedDepartment;
 
   final _authService = AuthService();
   bool _isLoading = false;
 
   // Data
-  final List<String> _excos = [
-    'President',
-    'Vice President',
-    'General Secretary',
-    'Financial Secretary',
-    'Social Director',
-    'PRO',
-    'Welfare Director',
-    'Academic Director',
-  ];
+  List<Map<String, String>> _excos = []; // Dynamic list of {label, value}
+  bool _isLoadingExcos = false;
 
   final List<String> _genders = ['Male', 'Female'];
+
+  final List<String> _workforceDepartments = [
+    'Choir',
+    'Ushering',
+    'Technical',
+    'Media',
+    'Prayer',
+    'Evangelism',
+    'Welfare',
+    'Sanctuary',
+    'Protocol',
+    'Children',
+    'Drama',
+    'Instrumentals',
+  ];
+
+  final Map<String, String> _hostelBackendMap = {
+    'Peace Hostel': 'PEACE_hostel',
+    'Progress Hostel': 'PROGRESS_hostel',
+    'Purity Hostel': 'purity_hostel',
+    'Patience Hostel': 'patience_hostel',
+    'Peculiar Hostel': 'peculiar_hostel',
+    'Guest House': 'guest_house',
+  };
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchExecutives();
+  }
+
+  Future<void> _fetchExecutives() async {
+    setState(() => _isLoadingExcos = true);
+    // Assuming _authService.getExecutives() now returns List<Map<String, String>>
+    final excos = await _authService.getExecutives();
+    if (mounted) {
+      setState(() {
+        _excos = excos;
+        _isLoadingExcos = false;
+      });
+    }
+  }
 
   List<String> get _availableHostels {
     if (_selectedGender == 'Male') {
@@ -73,14 +108,15 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
     // Construct user data map matching API expectations
     final userData = {
-      'name': _nameController.text.trim(),
+      'fullName': _nameController.text.trim(),
       'email': _emailController.text.trim(),
-      'phone': _phoneController.text.trim(),
-      'gender': _selectedGender,
-      'hostel': _selectedHostel,
-      'department': _departmentController.text.trim(),
-      'exco_position': _selectedExco,
+      'phoneNumber': _phoneController.text.trim(),
+      'gender': _selectedGender?.toLowerCase(), // 'male', 'female'
+      'hostel': _hostelBackendMap[_selectedHostel], // Use backend value from map
+      'workforceDepartment': _selectedDepartment?.toLowerCase(),
+      'assignedExecutive': _selectedExco, // This is now the ID
       'password': _passwordController.text,
+      'confirmPassword': _passwordController.text,
     };
 
     final result = await _authService.register(userData);
@@ -187,24 +223,70 @@ class _RegisterScreenState extends State<RegisterScreen> {
             ),
             const SizedBox(height: 16),
 
-            _buildTextField(controller: _departmentController, label: 'Workforce Department', icon: Icons.work_outline),
-            const SizedBox(height: 16),
-
-            // Exco Dropdown
+            // Workforce Department Dropdown
             _buildDropdown(
-              value: _selectedExco,
-              hint: 'Select Assigned Exco',
-              icon: Icons.assignment_ind_outlined,
-              items: _excos,
+              value: _selectedDepartment,
+              hint: 'Select Workforce Department',
+              icon: Icons.work_outline,
+              items: _workforceDepartments,
               onChanged: (val) {
                 setState(() {
-                  _selectedExco = val;
+                  _selectedDepartment = val;
                 });
               },
             ),
             const SizedBox(height: 16),
 
+            // Exco Dropdown (Custom implementation for Map items)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+              decoration: BoxDecoration(
+                color: _isLoadingExcos ? Colors.grey[200] : Colors.grey[50],
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.grey.shade400),
+              ),
+              child: DropdownButtonHideUnderline(
+                child: DropdownButton<String>(
+                  value: _selectedExco,
+                  hint: Row(
+                    children: [
+                      Icon(Icons.assignment_ind_outlined, color: !_isLoadingExcos ? const Color(0xFF1A237E) : Colors.grey),
+                      const SizedBox(width: 12),
+                      Text(
+                        _isLoadingExcos ? 'Loading roles...' : 'Select Assigned Exco', 
+                        style: GoogleFonts.poppins(color: !_isLoadingExcos ? Colors.black87 : Colors.grey)
+                      ),
+                    ],
+                  ),
+                  isExpanded: true,
+                  icon: Icon(Icons.arrow_drop_down, color: !_isLoadingExcos ? const Color(0xFF1A237E) : Colors.grey),
+                  items: _excos.map((Map<String, String> item) {
+                    return DropdownMenuItem<String>(
+                      value: item['value'], // Use ID as value
+                      child: Text(
+                        item['label']!, // Show Name (Position)
+                        style: GoogleFonts.poppins(),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    );
+                  }).toList(),
+                  onChanged: !_isLoadingExcos ? (val) {
+                    setState(() {
+                      _selectedExco = val;
+                    });
+                  } : null,
+                ),
+              ),
+            ).animate().fadeIn(duration: 400.ms).slideY(begin: 0.1, end: 0),
+            
+            const SizedBox(height: 16),
+
             _buildTextField(controller: _passwordController, label: 'Password', icon: Icons.lock_outline, isPassword: true),
+            const SizedBox(height: 8),
+            Text(
+              'Password must contain at least one lowercase letter, one uppercase letter, and one number',
+              style: GoogleFonts.manrope(fontSize: 12, color: Colors.red[700]),
+            ).animate().fadeIn(delay: 600.ms),
             const SizedBox(height: 16),
             _buildTextField(controller: _confirmPasswordController, label: 'Confirm Password', icon: Icons.lock_outline, isPassword: true),
             
